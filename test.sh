@@ -1,0 +1,2 @@
+pwdDir=${PWD##*/}
+echo $pwdDir
