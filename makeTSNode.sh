@@ -12,14 +12,8 @@ mkdir readmeHeader
 touch src/index.ts
 touch test/test.js
 touch readmeHeader/readhead.md
-touch README.md
 cat << EOT >> readmeHeader/readhead.md
 # ${PWD##*/}
 EOT
-cat << EOT >> README.md
-# ${PWD##*/}
-EOT
-git init
-git commit -m "first commit"
-git remote add origin git@github.com:aellison5505/${PWD##*/}.git
-git push -u origin master
+
+
