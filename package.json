@@ -7,7 +7,7 @@
     "test": "mocha",
     "build": "tsc",
     "tsc-w": "tsc -w",
-    "build-docs": "touch ./readme.md && rm ./readme.md && npx typedoc --toc --mode modules --theme markdown --out /docs --readme /readmeHeader/readhead.md /src && npx concat-md --decrease-title-levels ./docs > README.md"
+    "build-docs": "touch ./readme.md && rm ./readme.md && npx typedoc --toc --mode modules --theme markdown --out /mnt/d/dev/PQHybrid-EC-Kyber/docs --readme /mnt/d/dev/PQHybrid-EC-Kyber/readmeHeader/readhead.md /mnt/d/dev/PQHybrid-EC-Kyber/src && npx concat-md --decrease-title-levels ./docs > README.md"
   },
   "repository": {
     "type": "git",

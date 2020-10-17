@@ -3,7 +3,7 @@ import { Kyber } from 'node-kyber-1024';
 import { createCipheriv, createDecipheriv, createECDH, ECDH, randomFillSync } from 'crypto';
 import { ReadStream, WriteStream } from 'fs';
 import { Sha3 } from 'node-sidh';
-import { allowedNodeEnvironmentFlags } from 'process';
+
 
 export class EcKyber {
 
@@ -11,12 +11,20 @@ export class EcKyber {
     ec: ECDH;
     sha3: Sha3;
 
+    /**
+     * EcKyber Class creates a hybrid EC secp256k1 and PQ Kyber keys.
+     * It also encrypts data with the combined keys using chacha20-poly1305.
+     */
     constructor() {
         this.kyber = new Kyber();
         this.ec = createECDH('secp256k1');
         this.sha3 = new Sha3();
     }
 
+    /**
+     * Creates the combined key pair.
+     * @returns Buffer with packed private and public keys.
+     */
     createKeyPair(): Promise<Buffer> {
         return new Promise<Buffer>(async (ret) => {
            const { privateKey: KyPri, publicKey: KyPub } =  await this.kyber.createKeys();
@@ -29,6 +37,11 @@ export class EcKyber {
         });
     }
 
+    /**
+     * Gets the PublicKey,
+     * @param keys Hybrid Keys
+     * @returns Buffer with the packed PublicKey
+     */
     getPublicKeys(keys: Buffer): Promise<Buffer> {
         return new Promise<Buffer>(async (ret, err) => {
             if(keys.length !== 4833) {
@@ -41,6 +54,11 @@ export class EcKyber {
         });
     }
 
+    /**
+     *Gets the PrivateKey,
+    * @param keys Hybrid Keys
+    * @returns Buffer with the packed PrivateKey 
+     */
     getPrivateKeys(keys: Buffer): Promise<Buffer> {
         return new Promise<Buffer>(async (ret, err) => {
             if(keys.length !== 4833) {
@@ -52,9 +70,20 @@ export class EcKyber {
             ret(pribKeys);
         });
     }
-
-    encrypt(fileStream: ReadStream, publicKeys: Buffer): Promise<Buffer>;
-    encrypt(message: Buffer, publicKeys: Buffer): Promise<Buffer>;
+    /**
+     * Takes stream and PublicKey to encrypt data with chacha20-poly1305.
+     * @param stream data stream
+     * @param publicKey Hybrid key
+     * @returns Buffer with packed cipher data.
+     */
+    encrypt(stream: ReadStream, publicKey: Buffer): Promise<Buffer>;
+    /**
+     *  Takes a buffer and PublicKey to encrypt data with chacha20-poly1305.
+     * @param message Buffer of data
+     * @param publicKey Hybrid key
+     * @returns Buffer with packed cipher data.
+     */
+    encrypt(message: Buffer, publicKey: Buffer): Promise<Buffer>;
     encrypt(_alpha: any, _keys: Buffer): Promise<Buffer> {
         return new Promise<Buffer>(async (ret, err) => {
 
@@ -99,8 +128,21 @@ export class EcKyber {
         });
     }
 
-    decrypt(cipherBytes: Buffer, privateKeys: Buffer): Promise<Buffer>;
-    decrypt(cipherBytes: Buffer, privateKeys: Buffer, writeStream: WriteStream): Promise<void>;
+    /**
+     *  Takes packed cipher data and PublicKey to decrypt data with chacha20-poly1305.
+     * @param cipherBytes Buffer with packed cipher data.
+     * @param privateKey Hybrid Key
+     * @returns Buffer with decrypted data.
+     */
+    decrypt(cipherBytes: Buffer, privateKey: Buffer): Promise<Buffer>;
+    /**
+     * Takes packed cipher data and PublicKey to decrypt data with chacha20-poly1305.
+     * @param cipherBytes  Buffer with packed cipher data.
+     * @param privateKey Hybrid Key
+     * @param writeStream stream to write data
+     * @returns void
+     */
+    decrypt(cipherBytes: Buffer, privateKey: Buffer, writeStream: WriteStream): Promise<void>;
     decrypt(_cipherBytes: Buffer, _keys: Buffer, _writeStream?: WriteStream): Promise<any> {
         return new Promise<Buffer | void>(async (ret, err) => {
             let kyPri = Buffer.alloc(3168, 0);

@@ -1,21 +1,6 @@
+**[pqhybrid-ec-kyber](../README.md)**
 
-<a name="readmemd"></a>
-
-**[pqhybrid-ec-kyber](#readmemd)**
-
-> [Globals](#globalsmd)
-
-# PQHybrid-EC-Kyber
-
-### PQHybrid-EC-Kyber creates a hybrid EC secp256k1 and PQ Kyber key.
-### It also encrypts data with the combined keys using chacha20-poly1305.
-
-
-<a name="classes_eckyber_eckybermd"></a>
-
-**[pqhybrid-ec-kyber](#readmemd)**
-
-> [Globals](#globalsmd) / ["EcKyber"](#modules_eckyber_md) / EcKyber
+> [Globals](../globals.md) / ["EcKyber"](../modules/_eckyber_.md) / EcKyber
 
 # Class: EcKyber
 
@@ -27,34 +12,34 @@
 
 ### Constructors
 
-* [constructor](#constructor)
+* [constructor](_eckyber_.eckyber.md#constructor)
 
 ### Properties
 
-* [ec](#ec)
-* [kyber](#kyber)
-* [sha3](#sha3)
+* [ec](_eckyber_.eckyber.md#ec)
+* [kyber](_eckyber_.eckyber.md#kyber)
+* [sha3](_eckyber_.eckyber.md#sha3)
 
 ### Methods
 
-* [createKeyPair](#createkeypair)
-* [decrypt](#decrypt)
-* [encrypt](#encrypt)
-* [getPrivateKeys](#getprivatekeys)
-* [getPublicKeys](#getpublickeys)
+* [createKeyPair](_eckyber_.eckyber.md#createkeypair)
+* [decrypt](_eckyber_.eckyber.md#decrypt)
+* [encrypt](_eckyber_.eckyber.md#encrypt)
+* [getPrivateKeys](_eckyber_.eckyber.md#getprivatekeys)
+* [getPublicKeys](_eckyber_.eckyber.md#getpublickeys)
 
 ## Constructors
 
 ### constructor
 
-\+ **new EcKyber**(): [EcKyber](#classes_eckyber_eckybermd)
+\+ **new EcKyber**(): [EcKyber](_eckyber_.eckyber.md)
 
 *Defined in EcKyber.ts:12*
 
 EcKyber Class creates a hybrid EC secp256k1 and PQ Kyber keys.
 It also encrypts data with the combined keys using chacha20-poly1305.
 
-**Returns:** [EcKyber](#classes_eckyber_eckybermd)
+**Returns:** [EcKyber](_eckyber_.eckyber.md)
 
 ## Properties
 
@@ -210,55 +195,3 @@ Name | Type | Description |
 **Returns:** Promise\<Buffer>
 
 Buffer with the packed PublicKey
-
-
-<a name="globalsmd"></a>
-
-**[pqhybrid-ec-kyber](#readmemd)**
-
-> Globals
-
-# pqhybrid-ec-kyber
-
-## Index
-
-### Modules
-
-* ["EcKyber"](#modules_eckyber_md)
-* ["index"](#modules_index_md)
-
-
-<a name="modules_eckyber_md"></a>
-
-**[pqhybrid-ec-kyber](#readmemd)**
-
-> [Globals](#globalsmd) / "EcKyber"
-
-# Module: "EcKyber"
-
-## Index
-
-### Classes
-
-* [EcKyber](#classes_eckyber_eckybermd)
-
-
-<a name="modules_index_md"></a>
-
-**[pqhybrid-ec-kyber](#readmemd)**
-
-> [Globals](#globalsmd) / "index"
-
-# Module: "index"
-
-## Index
-
-### References
-
-* [EcKyber](#eckyber)
-
-## References
-
-### EcKyber
-
-Re-exports: [EcKyber](#classes_eckyber_eckybermd)
