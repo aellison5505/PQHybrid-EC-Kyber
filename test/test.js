@@ -1,6 +1,7 @@
 const { EcKyber } = require('../lib/index');
 const { createReadStream } = require('fs');
 const expect = require('chai').expect;
+//const path = require('path').basename(__dirname);
 
 describe('PQHybrid-EC-Kyber',() => {
     before(() => {
@@ -54,7 +55,7 @@ describe('PQHybrid-EC-Kyber',() => {
 
     describe('#encrypt - stream', () => {
         before(async () => {
-            this.dStream = createReadStream('/mnt/d/dev/PQHybrid-EC-Kyber/test/testMsg.txt');
+            this.dStream = createReadStream(`${__dirname}/testMsg.txt`);
             this.data = Buffer.from('The cat in the Hat ate the Cat!');
             this.encDataStream = await this.ecK.encrypt(this.dStream,this.publicKey);
         });
