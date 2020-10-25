@@ -36,6 +36,8 @@ export declare class EcKyber {
      * @returns Buffer with packed cipher data.
      */
     encrypt(stream: ReadStream, publicKey: Buffer): Promise<Buffer>;
+    encrypt(stream: ReadStream, streamWrite: WriteStream, publicKey: Buffer): Promise<void>;
+    encrypt(message: Buffer, streamWrite: WriteStream, publicKey: Buffer): Promise<void>;
     /**
      *  Takes a buffer and PublicKey to encrypt data with chacha20-poly1305.
      * @param message Buffer of data

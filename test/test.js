@@ -1,5 +1,5 @@
 const { EcKyber } = require('../lib/index');
-const { createReadStream } = require('fs');
+const { createReadStream, createWriteStream, existsSync, statSync } = require('fs');
 const expect = require('chai').expect;
 //const path = require('path').basename(__dirname);
 
@@ -33,7 +33,7 @@ describe('PQHybrid-EC-Kyber',() => {
             expect(this.publicKey.length).to.be.equal(1568 + 65);
         });
     });
-
+    
     describe('#encrypt', () => {
         before(async () => {
             this.data = Buffer.from('The cat in the Hat ate the Cat!');
@@ -70,6 +70,19 @@ describe('PQHybrid-EC-Kyber',() => {
         });
         it('should return decrypted data equal to message data', () => {
             expect(this.retData.toString('hex')).to.be.equal(this.data.toString('hex'));
+        });
+    });
+
+    describe('#encrypt - stream - stream', () => {
+        before(async () => {
+            this.dStream = createReadStream(`${__dirname}/testMsg.txt`);
+            this.wStream = createWriteStream(`${__dirname}/testCrypto`)
+            this.data = Buffer.from('The cat in the Hat ate the Cat!');
+            this.encDataStream = await this.ecK.encrypt(this.dStream,this.wStream,this.publicKey);
+        });
+        it('should return cipherData', () => {
+            let stats = statSync(`${__dirname}/testCrypto`);
+            expect(stats.size).to.be.greaterThan(this.data.length);
         });
     });
     
