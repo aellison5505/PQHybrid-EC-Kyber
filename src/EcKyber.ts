@@ -133,13 +133,21 @@ export class EcKyber {
             let nonce = Buffer.alloc(12);
             randomFillSync(nonce);
             let cipher = createCipheriv('chacha20-poly1305', key, nonce, { authTagLength: 16 });
-            let writeEnc = new _EncryptStream(cipher);
+            
             let head = Buffer.concat([nonce, cryptoEc,kyCipherBytes]);
-            writeStream.write(head);
+            let writeEnc = new _EncryptStream(cipher, head);
+            let retBuffer: Buffer[] = [];
             if(returnWrite === undefined) {
+                writeStream.on('readable', () => {
+                    let data;
+                    while(data = writeStream.read()) {
+                        retBuffer.push(data);
+                    }
+                });
                 await pipeLine(msgStream, writeEnc, writeStream);
-                ret(writeStream.cryptoBytes);
+                ret(Buffer.concat(retBuffer));
             } else {
+            //    returnWrite.write(head);
                 await pipeLine(msgStream, writeEnc, returnWrite);
                 ret();
             }
@@ -158,13 +166,7 @@ export class EcKyber {
         head.copy(ecPubKey,0,(12),(12+65));
         let kyCryptoBytes = Buffer.alloc(1568);
         head.copy(kyCryptoBytes,0,(12+65),(12+65+1568));
-        //  let data = Buffer.alloc(_cipherBytes.length-(12+65+1568));
-        //   _cipherBytes.copy(data,0,(12+65+1568), (12+65+1568+data.length));
-        // let tag = Buffer.alloc(16);
-        //_cipherBytes.copy(tag,0,(12+65+1568+data.length),(12+65+1568+data.length+16));
-        // _cipherBytes.copy(data,0,(12+65+1568), (12+65+1568+data.length));
         let kySecureKey = await this.kyber.decryptKey(kyPri,kyCryptoBytes);
-        // let cipherStream = Readable.from(data as Buffer);
         this.ec.setPrivateKey(ecPri);
         let ecKey = this.ec.computeSecret(ecPubKey);
 
@@ -208,10 +210,16 @@ export class EcKyber {
             }
             let writeStream = new _WriteStreamBuffer();
             let writeDec = new _DecryptStream(this.decipher.bind(this), _keys);
-            
+            let retBuffer: Buffer[] = [];
             if(returnStream === undefined) {
+                writeStream.on('readable', () => {
+                    let data;
+                    while(data = writeStream.read()) {
+                        retBuffer.push(data);
+                    }
+                });
                 await pipeLine(cipherStream,writeDec,writeStream);
-                ret(writeStream.cryptoBytes);
+                ret(Buffer.concat(retBuffer));
             } else {
                 await pipeLine(cipherStream,writeDec,returnStream);
                 ret();
@@ -230,11 +238,7 @@ class _WriteStreamBuffer extends Duplex {
     }
 
     _read() {
-        let data;
-        while(data = this._tempBuf.shift()){
-            this.push(data);
-        }
-
+        this.push(this._tempBuf.shift());
     }
 
     _write(chunk: any, encoding: any, callback: Function) {
@@ -243,37 +247,22 @@ class _WriteStreamBuffer extends Duplex {
         else
             chunk = chunk as Buffer;
         this._tempBuf.push(chunk);
+        this.emit('readable');
         callback();
-    }
-
-     _writev(chunks: any[], callback: Function) {
-
-        for(let i = 0; i < chunks.length; i++ ) {
-            const {chunk: _chunk, encoding: _encoding  } = chunks[i];
-            if(!Buffer.isBuffer(_chunk))
-                var chunkBuf = Buffer.from(_chunk);
-            else
-                var chunkBuf = _chunk;
-            
-            this._tempBuf.push(chunkBuf);
-           // this._tempBuf = Buffer.concat([this._tempBuf, chunkBuf]);
-        }
-            callback();
+        
     }
 
     _final(callback: Function) {
         if(this.readableLength > 0) {
             this._final(callback);
             return;
-        }else {
-            this.push(null); 
-            callback()
-         
+        }else if(this._tempBuf.length > 0) {
+            this.emit('readable');
+            this._final(callback);
+            return;
+        } else {
+            callback();
         }
-    }
-
-    get cryptoBytes() {
-        return Buffer.concat(this._tempBuf);
     }
 }
 
@@ -351,8 +340,11 @@ class _DecryptStream extends Transform {
 
 class _EncryptStream extends Transform {
 
-    constructor(private cipher: CipherCCM, options?: TransformOptions) {
+    private _head: Boolean;
+
+    constructor(private cipher: CipherCCM, private head: Buffer, options?: TransformOptions) {
         super(options);
+        this._head = false;
         cipher.on('readable', () => this.cipherRead());
     }
 
@@ -364,6 +356,12 @@ class _EncryptStream extends Transform {
     }
 
     _transform(chunk: Buffer | String, encoding: any, callback: Function) {
+        if(this._head === false) {
+            this.push(this.head);
+            this._head = true;
+            this._transform(chunk, encoding, callback);
+            return;
+        }
         if(!Buffer.isBuffer(chunk))
             chunk = Buffer.from(chunk);
         if(chunk)
@@ -372,18 +370,25 @@ class _EncryptStream extends Transform {
     }
 
     _flush(callback: Function) {
-        if(this.cipher.readableLength > 0) {
+        if(this.readableLength > 0) {
+            this._flush(callback);
+            return;
+        } else if(this.cipher.readableLength > 0) {
             this.cipherRead();
             this._flush(callback);
             return;
-        }else {
+        }else if (!this.cipher.destroyed){
         this.cipher.end(() => {
             let tag = this.cipher.getAuthTag();
             this.push(tag);
-            this.push(null);
-            callback();
+            this.cipher.destroy();
+            this._flush(callback);
+            return;
             });      
-        } 
+        } else {
+        //    this.push(null);
+            callback();
+        }
     }
 
 }

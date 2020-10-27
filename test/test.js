@@ -40,7 +40,7 @@ describe('PQHybrid-EC-Kyber',() => {
             this.encData = await this.ecK.encrypt(this.data,this.publicKey);
         });
         it('should return cipherData', () => {
-            expect(Buffer.isBuffer(this.encData)).to.be.true;
+            expect(this.encData.length).to.be.equal(1692);
         });
     });
 
@@ -60,16 +60,18 @@ describe('PQHybrid-EC-Kyber',() => {
             this.encDataStream = await this.ecK.encrypt(this.dStream,this.publicKey);
         });
         it('should return cipherData', () => {
-            expect(Buffer.isBuffer(this.encDataStream)).to.be.true;
+            expect(this.encDataStream.length).to.be.equal(1692);
         });
     });
 
     describe('#decrypt - Stream', () => {
         before(async () => {
-            this.retData = await this.ecK.decrypt(this.privateKey,this.encDataStream);
+            this.rStream = createWriteStream(`${__dirname}/retMsg.txt`);
+            await this.ecK.decrypt(this.privateKey,this.encDataStream, this.rStream);
         });
         it('should return decrypted data equal to message data', () => {
-            expect(this.retData.toString('hex')).to.be.equal(this.data.toString('hex'));
+            let stats = statSync(`${__dirname}/retMsg.txt`);
+            expect(stats.size).to.be.equal(this.data.length);
         });
     });
 
@@ -82,14 +84,15 @@ describe('PQHybrid-EC-Kyber',() => {
         });
         it('should return cipherData', () => {
             let stats = statSync(`${__dirname}/testCrypto`);
-            expect(stats.size).to.be.greaterThan(this.data.length);
+            expect(stats.size).to.be.equal(1692);
         });
     });
 
     describe('#decrypt - Stream - Stream', () => {
         before(async () => {
             this.rStream = createWriteStream(`${__dirname}/retMsg.txt`);
-            await this.ecK.decrypt(this.privateKey, this.encDataStream, this.rStream);
+            this.cStream = createReadStream(`${__dirname}/testCrypto`);
+            await this.ecK.decrypt(this.privateKey, this.cStream, this.rStream);
         });
         it('should return decrypted data equal to message data', () => {
             let stats = statSync(`${__dirname}/retMsg.txt`);
