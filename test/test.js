@@ -1,5 +1,5 @@
 const { EcKyber } = require('../lib/index');
-const { createReadStream, createWriteStream, existsSync, statSync } = require('fs');
+const { createReadStream, createWriteStream, existsSync, statSync, unlink, unlinkSync } = require('fs');
 const expect = require('chai').expect;
 //const path = require('path').basename(__dirname);
 
@@ -46,7 +46,7 @@ describe('PQHybrid-EC-Kyber',() => {
 
     describe('#decrypt', () => {
         before(async () => {
-            this.retData = await this.ecK.decrypt(this.encData,this.privateKey);
+            this.retData = await this.ecK.decrypt(this.privateKey, this.encData);
         });
         it('should return decrypted data equal to message data', () => {
             expect(this.retData.toString('hex')).to.be.equal(this.data.toString('hex'));
@@ -66,7 +66,7 @@ describe('PQHybrid-EC-Kyber',() => {
 
     describe('#decrypt - Stream', () => {
         before(async () => {
-            this.retData = await this.ecK.decrypt(this.encDataStream,this.privateKey);
+            this.retData = await this.ecK.decrypt(this.privateKey,this.encDataStream);
         });
         it('should return decrypted data equal to message data', () => {
             expect(this.retData.toString('hex')).to.be.equal(this.data.toString('hex'));
@@ -78,12 +78,28 @@ describe('PQHybrid-EC-Kyber',() => {
             this.dStream = createReadStream(`${__dirname}/testMsg.txt`);
             this.wStream = createWriteStream(`${__dirname}/testCrypto`)
             this.data = Buffer.from('The cat in the Hat ate the Cat!');
-            this.encDataStream = await this.ecK.encrypt(this.dStream,this.wStream,this.publicKey);
+            await this.ecK.encrypt(this.dStream,this.wStream,this.publicKey);
         });
         it('should return cipherData', () => {
             let stats = statSync(`${__dirname}/testCrypto`);
             expect(stats.size).to.be.greaterThan(this.data.length);
         });
     });
-    
+
+    describe('#decrypt - Stream - Stream', () => {
+        before(async () => {
+            this.rStream = createWriteStream(`${__dirname}/retMsg.txt`);
+            await this.ecK.decrypt(this.privateKey, this.encDataStream, this.rStream);
+        });
+        it('should return decrypted data equal to message data', () => {
+            let stats = statSync(`${__dirname}/retMsg.txt`);
+            expect(stats.size).to.be.equal(this.data.length);
+        });
+    });
+
+
+    after(() => {
+        unlinkSync(`${__dirname}/testCrypto`);
+    });
+   
 });

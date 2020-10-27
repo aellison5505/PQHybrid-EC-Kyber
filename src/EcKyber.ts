@@ -5,6 +5,7 @@ import { ReadStream, WriteStream } from 'fs';
 import { Writable, WritableOptions, Readable, pipeline, Transform, TransformOptions, Duplex } from 'stream';
 import { Sha3 } from 'node-sidh';
 import { promisify } from 'util';
+import { threadId } from 'worker_threads';
 const pipeLine = promisify(pipeline);
 
 
@@ -111,7 +112,7 @@ export class EcKyber {
            } else if(typeof _arg2.on === 'function' ) {
                 returnWrite = _arg2 as WriteStream;
            } else {
-            err(new Error('invalid input'));
+                err(new Error('invalid input'));
             return
            }
 
@@ -136,17 +137,42 @@ export class EcKyber {
             let head = Buffer.concat([nonce, cryptoEc,kyCipherBytes]);
             writeStream.write(head);
             if(returnWrite === undefined) {
-                writeStream.on('finish', () => {
-
-                    ret(writeStream.cryptoBytes);
-                
-                });
-                msgStream.pipe(writeEnc).pipe(writeStream);
+                await pipeLine(msgStream, writeEnc, writeStream);
+                ret(writeStream.cryptoBytes);
             } else {
-                await pipeLine(msgStream, writeEnc, writeStream, returnWrite);
+                await pipeLine(msgStream, writeEnc, returnWrite);
                 ret();
             }
         });
+    }
+
+    async decipher(head: Buffer, keys: Buffer) {
+        let kyPri = Buffer.alloc(3168, 0);
+        let ecPri = Buffer.alloc(32, 0);
+        
+        keys.copy(kyPri,0,0,3168);
+        keys.copy(ecPri,0,3168);
+        let nonce = Buffer.alloc(12);
+        head.copy(nonce,0,0,(12));
+        let ecPubKey = Buffer.alloc(65);
+        head.copy(ecPubKey,0,(12),(12+65));
+        let kyCryptoBytes = Buffer.alloc(1568);
+        head.copy(kyCryptoBytes,0,(12+65),(12+65+1568));
+        //  let data = Buffer.alloc(_cipherBytes.length-(12+65+1568));
+        //   _cipherBytes.copy(data,0,(12+65+1568), (12+65+1568+data.length));
+        // let tag = Buffer.alloc(16);
+        //_cipherBytes.copy(tag,0,(12+65+1568+data.length),(12+65+1568+data.length+16));
+        // _cipherBytes.copy(data,0,(12+65+1568), (12+65+1568+data.length));
+        let kySecureKey = await this.kyber.decryptKey(kyPri,kyCryptoBytes);
+        // let cipherStream = Readable.from(data as Buffer);
+        this.ec.setPrivateKey(ecPri);
+        let ecKey = this.ec.computeSecret(ecPubKey);
+
+        let key = await this.sha3.shake256(Buffer.concat([kySecureKey, ecKey]), 32);
+
+        let cipher = createDecipheriv('chacha20-poly1305', key, nonce, { authTagLength: 16 });
+
+        return cipher;
     }
 
     /**
@@ -155,7 +181,7 @@ export class EcKyber {
      * @param privateKey Hybrid Key
      * @returns Buffer with decrypted data.
      */
-    decrypt(cipherBytes: Buffer, privateKey: Buffer): Promise<Buffer>;
+    decrypt(privateKey: Buffer, cipherBytes: Buffer): Promise<Buffer>;
     /**
      * Takes packed cipher data and PublicKey to decrypt data with chacha20-poly1305.
      * @param cipherBytes  Buffer with packed cipher data.
@@ -163,43 +189,33 @@ export class EcKyber {
      * @param writeStream stream to write data
      * @returns void
      */
-    decrypt(cipherBytes: Buffer, privateKey: Buffer, writeStream: WriteStream): Promise<void>;
-    decrypt(_cipherBytes: Buffer, _keys: Buffer, _writeStream?: WriteStream): Promise<any> {
+    decrypt(privateKey: Buffer, cipherBytes: Buffer, writeStream: WriteStream): Promise<void>;
+    decrypt(privateKey: Buffer, readStream: ReadStream, writeStream: WriteStream): Promise<void>;
+    decrypt(_keys: Buffer, _arg2: any, _arg3?: WriteStream): Promise<any> {
         return new Promise<Buffer | void>(async (ret, err) => {
-            let kyPri = Buffer.alloc(3168, 0);
-            let ecPri = Buffer.alloc(32, 0);
-
-            _keys.copy(kyPri,0,0,3168);
-            _keys.copy(ecPri,0,3168);
-
-            let nonce = Buffer.alloc(12);
-            _cipherBytes.copy(nonce,0,0,(12));
-            let ecPubKey = Buffer.alloc(65);
-            _cipherBytes.copy(ecPubKey,0,(12),(12+65));
-            let kyCryptoBytes = Buffer.alloc(1568);
-            _cipherBytes.copy(kyCryptoBytes,0,(12+65),(12+65+1568));
-            let data = Buffer.alloc(_cipherBytes.length-(12+65+1568));
-         //   _cipherBytes.copy(data,0,(12+65+1568), (12+65+1568+data.length));
-            let tag = Buffer.alloc(16);
-             _cipherBytes.copy(tag,0,(12+65+1568+data.length),(12+65+1568+data.length+16));
-            _cipherBytes.copy(data,0,(12+65+1568), (12+65+1568+data.length));
-            let kySecureKey = await this.kyber.decryptKey(kyPri,kyCryptoBytes);
-            let cipherStream = Readable.from(data as Buffer);
-            this.ec.setPrivateKey(ecPri);
-            let ecKey = this.ec.computeSecret(ecPubKey);
-
-            let key = await this.sha3.shake256(Buffer.concat([kySecureKey, ecKey]), 32);
-
-            let cipher = createDecipheriv('chacha20-poly1305', key, nonce, { authTagLength: 16 });
-            let decData = Buffer.alloc(0);
+            let returnStream;
+            let cipherStream;
+            if(_arg3) {
+                returnStream = _arg3 as WriteStream;
+            }
+            if(Buffer.isBuffer(_arg2)) {
+                cipherStream = Readable.from(_arg2 as Buffer);
+            } else if(typeof _arg2.on === 'function' ) {
+                cipherStream = _arg2 as ReadStream;
+            }
+            if(!cipherStream) { 
+                throw new Error('no input');
+            }
             let writeStream = new _WriteStreamBuffer();
-            let writeDec = new _DecryptStream(cipher);
+            let writeDec = new _DecryptStream(this.decipher.bind(this), _keys);
             
-            writeStream.on('finish', () => {
+            if(returnStream === undefined) {
+                await pipeLine(cipherStream,writeDec,writeStream);
                 ret(writeStream.cryptoBytes);
-            });
-            cipherStream.pipe(writeDec).pipe(writeStream);
-
+            } else {
+                await pipeLine(cipherStream,writeDec,returnStream);
+                ret();
+            }
         });
     }
 }
@@ -246,8 +262,14 @@ class _WriteStreamBuffer extends Duplex {
     }
 
     _final(callback: Function) {
-        this.push(null);
-        callback();
+        if(this.readableLength > 0) {
+            this._final(callback);
+            return;
+        }else {
+            this.push(null); 
+            callback()
+         
+        }
     }
 
     get cryptoBytes() {
@@ -257,13 +279,16 @@ class _WriteStreamBuffer extends Duplex {
 
 class _DecryptStream extends Transform {
 
-   
+    decipher: DecipherGCM;
     tag: Buffer;
+    callDecipher: boolean;
    
-    constructor(private decipher: DecipherGCM, options?: TransformOptions) {
+    constructor(private getDecipher: Function, private keys: Buffer, options?: TransformOptions) {
         super(options);
         this.tag = Buffer.alloc(0);
-        this.decipher.on('readable', () => this.decipherRead())
+        this.callDecipher = false;
+        this.decipher = createDecipheriv('chacha20-poly1305', Buffer.alloc(32,0), Buffer.alloc(12,0), { authTagLength: 16 });
+     //   this.decipher.on('readable', () => this.decipherRead())
     }
 
     private decipherRead() {
@@ -271,12 +296,25 @@ class _DecryptStream extends Transform {
         while (data = this.decipher.read()) {
             this.push(data);
         }
+     //   this.decipher.end();
     }
 
     _transform(chunk: Buffer | String, encoding: any, callback: Function) {
        
         if(!Buffer.isBuffer(chunk))
             chunk = Buffer.from(chunk);
+
+        if(this.callDecipher === false) {
+            this.getDecipher(Buffer.alloc(1645,chunk.slice(0, 1645)), this.keys)
+            .then((dec: DecipherGCM) => {
+                this.decipher = dec;
+                this.decipher.on('readable', () => this.decipherRead());
+                chunk = Buffer.alloc(chunk.length - 1645,chunk.slice(1645));
+                this.callDecipher = true;
+                this._transform(chunk,encoding,callback);
+            });
+            return;
+        }
         if(chunk.length < 16) {
             let tempTag = Buffer.from(this.tag);
             let start = 16-chunk.length;
@@ -285,7 +323,9 @@ class _DecryptStream extends Transform {
             callback()
             return
         } else {
-            this.decipher.write(Buffer.concat([Buffer.alloc(this.tag.length,this.tag),Buffer.alloc(chunk.length-16,chunk.slice(0,chunk.length-16))]));
+            let cBytes = Buffer.concat([Buffer.alloc(this.tag.length,this.tag),Buffer.alloc(chunk.length-16,chunk.slice(0,chunk.length-16))]);
+            let data = this.decipher.write(cBytes);
+            //this.push(data);
             let tagStart = chunk.length - 16;
             this.tag = Buffer.alloc(16, chunk.slice(tagStart));
             callback();
@@ -293,10 +333,19 @@ class _DecryptStream extends Transform {
     }
 
     _flush(callback: Function) {
-        this.decipher.setAuthTag(this.tag)
-        this.decipher.end(() => {
-            callback();
-        });  
+    //    this.push(null);
+        if(this.decipher.readableLength > 0) {
+            this.decipherRead();
+            this._flush(callback);
+            return;
+        }else {
+            this.push(null)
+            this.decipher.setAuthTag(this.tag);
+            this.decipher.end(() => {
+                
+                callback()
+            });
+        }
     }
 }
 
@@ -323,11 +372,18 @@ class _EncryptStream extends Transform {
     }
 
     _flush(callback: Function) {
+        if(this.cipher.readableLength > 0) {
+            this.cipherRead();
+            this._flush(callback);
+            return;
+        }else {
         this.cipher.end(() => {
             let tag = this.cipher.getAuthTag();
             this.push(tag);
+            this.push(null);
             callback();
-        });       
+            });      
+        } 
     }
 
 }

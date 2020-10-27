@@ -45,13 +45,14 @@ export declare class EcKyber {
      * @returns Buffer with packed cipher data.
      */
     encrypt(message: Buffer, publicKey: Buffer): Promise<Buffer>;
+    decipher(head: Buffer, keys: Buffer): Promise<import("crypto").DecipherCCM>;
     /**
      *  Takes packed cipher data and PublicKey to decrypt data with chacha20-poly1305.
      * @param cipherBytes Buffer with packed cipher data.
      * @param privateKey Hybrid Key
      * @returns Buffer with decrypted data.
      */
-    decrypt(cipherBytes: Buffer, privateKey: Buffer): Promise<Buffer>;
+    decrypt(privateKey: Buffer, cipherBytes: Buffer): Promise<Buffer>;
     /**
      * Takes packed cipher data and PublicKey to decrypt data with chacha20-poly1305.
      * @param cipherBytes  Buffer with packed cipher data.
@@ -59,6 +60,7 @@ export declare class EcKyber {
      * @param writeStream stream to write data
      * @returns void
      */
-    decrypt(cipherBytes: Buffer, privateKey: Buffer, writeStream: WriteStream): Promise<void>;
+    decrypt(privateKey: Buffer, cipherBytes: Buffer, writeStream: WriteStream): Promise<void>;
+    decrypt(privateKey: Buffer, readStream: ReadStream, writeStream: WriteStream): Promise<void>;
 }
 //# sourceMappingURL=EcKyber.d.ts.map
