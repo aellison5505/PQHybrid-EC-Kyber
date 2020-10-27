@@ -103,6 +103,7 @@ describe('PQHybrid-EC-Kyber',() => {
 
     after(() => {
         unlinkSync(`${__dirname}/testCrypto`);
+        unlinkSync(`${__dirname}/retMsg.txt`);
     });
    
 });
